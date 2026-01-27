@@ -72,7 +72,6 @@ let DB_PATH;
 if (USE_POSTGRES) {
   const { Pool } = require('pg');
   const PG_SCHEMA = resolvePgSchema();
-  const PG_SCHEMA_Q = `"${PG_SCHEMA}"`;
 
   const pgSslEnabled =
     String(process.env.PG_SSL || process.env.PGSSL || 'true').toLowerCase() !==
@@ -84,14 +83,19 @@ if (USE_POSTGRES) {
   const pool = new Pool({
     connectionString: POSTGRES_URL,
     ssl: pgSslEnabled ? { rejectUnauthorized: pgRejectUnauthorized } : undefined,
-    options: `-c search_path="${PG_SCHEMA}"`,
   });
 
-  pool.on('connect', (client) => {
-    client.query(`SET search_path TO "${PG_SCHEMA}"`).catch(() => {
-      // ignore: init() will fail loudly if schema doesn't exist
-    });
-  });
+  async function withClient(fn) {
+    const client = await pool.connect();
+    try {
+      await client
+        .query(`SET search_path TO "${PG_SCHEMA}"`)
+        .catch(() => null);
+      return await fn(client);
+    } finally {
+      client.release();
+    }
+  }
 
   db = pool;
   DB_PATH = '[postgres]';
@@ -99,81 +103,80 @@ if (USE_POSTGRES) {
   run = async (sql, params = []) => {
     const normalized = ensureReturningId(sql);
     const text = toPgPlaceholders(normalized);
-    const result = await pool.query(text, params);
+    const result = await withClient((client) => client.query(text, params));
     const lastID = result?.rows?.[0]?.id ?? null;
     return { lastID, changes: result?.rowCount ?? 0 };
   };
 
   get = async (sql, params = []) => {
     const text = toPgPlaceholders(sql);
-    const result = await pool.query(text, params);
+    const result = await withClient((client) => client.query(text, params));
     return result.rows[0] || null;
   };
 
   all = async (sql, params = []) => {
     const text = toPgPlaceholders(sql);
-    const result = await pool.query(text, params);
+    const result = await withClient((client) => client.query(text, params));
     return result.rows;
   };
 
-  function t(name) {
-    return `${PG_SCHEMA_Q}."${name}"`;
-  }
-
   init = async () => {
-    await pool.query(`CREATE SCHEMA IF NOT EXISTS "${PG_SCHEMA}"`);
+    await withClient(async (client) => {
+      await client.query(`CREATE SCHEMA IF NOT EXISTS "${PG_SCHEMA}"`);
+      await client.query(`SET search_path TO "${PG_SCHEMA}"`);
 
-    await run(`
-      CREATE TABLE IF NOT EXISTS ${t('weeks')} (
-        id BIGSERIAL PRIMARY KEY,
-        title TEXT NOT NULL,
-        status TEXT NOT NULL CHECK (status IN ('OPEN', 'CLOSED')),
-        created_at TEXT NOT NULL,
-        closed_at TEXT
-      )
-    `);
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS weeks (
+          id BIGSERIAL PRIMARY KEY,
+          title TEXT NOT NULL,
+          status TEXT NOT NULL CHECK (status IN ('OPEN', 'CLOSED')),
+          created_at TEXT NOT NULL,
+          closed_at TEXT
+        )
+      `);
 
-    await run(`
-      CREATE TABLE IF NOT EXISTS ${t('candidates')} (
-        id BIGSERIAL PRIMARY KEY,
-        week_id BIGINT NOT NULL REFERENCES ${t('weeks')}(id) ON DELETE CASCADE,
-        slot INTEGER NOT NULL,
-        name TEXT NOT NULL,
-        image_url TEXT,
-        UNIQUE(week_id, slot)
-      )
-    `);
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS candidates (
+          id BIGSERIAL PRIMARY KEY,
+          week_id BIGINT NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
+          slot INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          image_url TEXT,
+          UNIQUE(week_id, slot)
+        )
+      `);
 
-    await run(`
-      CREATE TABLE IF NOT EXISTS ${t('votes')} (
-        id BIGSERIAL PRIMARY KEY,
-        week_id BIGINT NOT NULL REFERENCES ${t('weeks')}(id) ON DELETE CASCADE,
-        candidate_id BIGINT NOT NULL REFERENCES ${t('candidates')}(id) ON DELETE CASCADE,
-        voter_hash TEXT NOT NULL,
-        created_at TEXT NOT NULL
-      )
-    `);
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS votes (
+          id BIGSERIAL PRIMARY KEY,
+          week_id BIGINT NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
+          candidate_id BIGINT NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+          voter_hash TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      `);
 
-    await run(`
-      CREATE TABLE IF NOT EXISTS ${t('reactions')} (
-        id BIGSERIAL PRIMARY KEY,
-        week_id BIGINT NOT NULL REFERENCES ${t('weeks')}(id) ON DELETE CASCADE,
-        participant_name TEXT NOT NULL,
-        reaction_id TEXT NOT NULL,
-        voter_hash TEXT NOT NULL,
-        created_at TEXT NOT NULL
-      )
-    `);
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS reactions (
+          id BIGSERIAL PRIMARY KEY,
+          week_id BIGINT NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
+          participant_name TEXT NOT NULL,
+          reaction_id TEXT NOT NULL,
+          voter_hash TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      `);
 
-    await run(
-      `CREATE INDEX IF NOT EXISTS ${PG_SCHEMA_Q}."idx_votes_week" ON ${t('votes')}(week_id)`
-    );
-    await run(
-      `CREATE UNIQUE INDEX IF NOT EXISTS ${PG_SCHEMA_Q}."idx_votes_week_voter" ON ${t('votes')}(week_id, voter_hash)`
-    );
-    await run(
-      `CREATE UNIQUE INDEX IF NOT EXISTS ${PG_SCHEMA_Q}."idx_reactions_week_participant_voter" ON ${t('reactions')}(week_id, participant_name, voter_hash)`
-    );
+      await client.query(
+        'CREATE INDEX IF NOT EXISTS idx_votes_week ON votes(week_id)'
+      );
+      await client.query(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_votes_week_voter ON votes(week_id, voter_hash)'
+      );
+      await client.query(
+        'CREATE UNIQUE INDEX IF NOT EXISTS idx_reactions_week_participant_voter ON reactions(week_id, participant_name, voter_hash)'
+      );
+    });
   };
 } else {
   const sqlite3 = require('sqlite3').verbose();
