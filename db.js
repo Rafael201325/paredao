@@ -28,15 +28,20 @@ const POSTGRES_URL =
 const USE_POSTGRES = Boolean(POSTGRES_URL);
 
 function resolvePgSchema() {
-  const schema =
+  const requested =
     process.env.PG_SCHEMA ||
     process.env.DATABASE_SCHEMA ||
     process.env.DB_SCHEMA ||
-    'app';
+    '';
+
+  const fallbackFromUser =
+    process.env.DATABASE_USER || process.env.PGUSER || process.env.PGUSERNAME || '';
+
+  const schema = requested || fallbackFromUser || 'app';
   const ok = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema);
   if (!ok) {
     throw new Error(
-      `Invalid schema name "${schema}". Use only letters, digits and underscore (must not start with a digit).`
+      `Invalid schema name "${schema}". Set PG_SCHEMA (or DATABASE_SCHEMA/DB_SCHEMA) using only letters, digits and underscore (must not start with a digit).`
     );
   }
   return schema;
@@ -67,6 +72,7 @@ let DB_PATH;
 if (USE_POSTGRES) {
   const { Pool } = require('pg');
   const PG_SCHEMA = resolvePgSchema();
+  const PG_SCHEMA_Q = `"${PG_SCHEMA}"`;
 
   const pgSslEnabled =
     String(process.env.PG_SSL || process.env.PGSSL || 'true').toLowerCase() !==
@@ -111,7 +117,7 @@ if (USE_POSTGRES) {
   };
 
   function t(name) {
-    return `"${PG_SCHEMA}".${name}`;
+    return `${PG_SCHEMA_Q}."${name}"`;
   }
 
   init = async () => {
@@ -160,13 +166,13 @@ if (USE_POSTGRES) {
     `);
 
     await run(
-      `CREATE INDEX IF NOT EXISTS "${PG_SCHEMA}".idx_votes_week ON ${t('votes')}(week_id)`
+      `CREATE INDEX IF NOT EXISTS ${PG_SCHEMA_Q}."idx_votes_week" ON ${t('votes')}(week_id)`
     );
     await run(
-      `CREATE UNIQUE INDEX IF NOT EXISTS "${PG_SCHEMA}".idx_votes_week_voter ON ${t('votes')}(week_id, voter_hash)`
+      `CREATE UNIQUE INDEX IF NOT EXISTS ${PG_SCHEMA_Q}."idx_votes_week_voter" ON ${t('votes')}(week_id, voter_hash)`
     );
     await run(
-      `CREATE UNIQUE INDEX IF NOT EXISTS "${PG_SCHEMA}".idx_reactions_week_participant_voter ON ${t('reactions')}(week_id, participant_name, voter_hash)`
+      `CREATE UNIQUE INDEX IF NOT EXISTS ${PG_SCHEMA_Q}."idx_reactions_week_participant_voter" ON ${t('reactions')}(week_id, participant_name, voter_hash)`
     );
   };
 } else {
