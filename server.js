@@ -360,27 +360,47 @@ app.put('/admin/weeks/:id/candidates', async (req, res) => {
     } else {
       return sendError(res, 400, 'INVALID_NAMES', 'Informe 3 nomes');
     }
-    await run('BEGIN TRANSACTION');
     for (let i = 0; i < 3; i += 1) {
       const name = payload[i].name;
       if (!name) {
-        await run('ROLLBACK');
         return sendError(res, 400, 'INVALID_NAMES', 'Nomes invalidos');
       }
-      const imageUrl = payload[i].imageUrl || null;
-      await run(
-        'UPDATE candidates SET name = ?, image_url = ? WHERE week_id = ? AND slot = ?',
-        [name, imageUrl, weekId, i + 1]
-      );
     }
-    await run('COMMIT');
+
+    const changes = await run(
+      `
+      UPDATE candidates
+      SET
+        name = CASE slot
+          WHEN 1 THEN ?
+          WHEN 2 THEN ?
+          WHEN 3 THEN ?
+          ELSE name
+        END,
+        image_url = CASE slot
+          WHEN 1 THEN ?
+          WHEN 2 THEN ?
+          WHEN 3 THEN ?
+          ELSE image_url
+        END
+      WHERE week_id = ? AND slot IN (1, 2, 3)
+      `,
+      [
+        payload[0].name,
+        payload[1].name,
+        payload[2].name,
+        payload[0].imageUrl || null,
+        payload[1].imageUrl || null,
+        payload[2].imageUrl || null,
+        weekId,
+      ]
+    );
+
+    if ((changes?.changes ?? 0) === 0) {
+      return sendError(res, 404, 'NOT_FOUND', 'Semana nao encontrada');
+    }
     return res.json({ ok: true });
   } catch (err) {
-    try {
-      await run('ROLLBACK');
-    } catch (_) {
-      // ignore
-    }
     return sendError(res, 500, 'SERVER_ERROR', 'Erro interno');
   }
 });

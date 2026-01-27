@@ -27,6 +27,21 @@ const POSTGRES_URL =
 
 const USE_POSTGRES = Boolean(POSTGRES_URL);
 
+function resolvePgSchema() {
+  const schema =
+    process.env.PG_SCHEMA ||
+    process.env.DATABASE_SCHEMA ||
+    process.env.DB_SCHEMA ||
+    'app';
+  const ok = /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(schema);
+  if (!ok) {
+    throw new Error(
+      `Invalid schema name "${schema}". Use only letters, digits and underscore (must not start with a digit).`
+    );
+  }
+  return schema;
+}
+
 function toPgPlaceholders(sql) {
   let i = 0;
   return sql.replace(/\?/g, () => `$${(i += 1)}`);
@@ -51,6 +66,7 @@ let DB_PATH;
 
 if (USE_POSTGRES) {
   const { Pool } = require('pg');
+  const PG_SCHEMA = resolvePgSchema();
 
   const pgSslEnabled =
     String(process.env.PG_SSL || process.env.PGSSL || 'true').toLowerCase() !==
@@ -62,6 +78,13 @@ if (USE_POSTGRES) {
   const pool = new Pool({
     connectionString: POSTGRES_URL,
     ssl: pgSslEnabled ? { rejectUnauthorized: pgRejectUnauthorized } : undefined,
+    options: `-c search_path="${PG_SCHEMA}"`,
+  });
+
+  pool.on('connect', (client) => {
+    client.query(`SET search_path TO "${PG_SCHEMA}"`).catch(() => {
+      // ignore: init() will fail loudly if schema doesn't exist
+    });
   });
 
   db = pool;
@@ -87,9 +110,15 @@ if (USE_POSTGRES) {
     return result.rows;
   };
 
+  function t(name) {
+    return `"${PG_SCHEMA}".${name}`;
+  }
+
   init = async () => {
+    await pool.query(`CREATE SCHEMA IF NOT EXISTS "${PG_SCHEMA}"`);
+
     await run(`
-      CREATE TABLE IF NOT EXISTS weeks (
+      CREATE TABLE IF NOT EXISTS ${t('weeks')} (
         id BIGSERIAL PRIMARY KEY,
         title TEXT NOT NULL,
         status TEXT NOT NULL CHECK (status IN ('OPEN', 'CLOSED')),
@@ -99,9 +128,9 @@ if (USE_POSTGRES) {
     `);
 
     await run(`
-      CREATE TABLE IF NOT EXISTS candidates (
+      CREATE TABLE IF NOT EXISTS ${t('candidates')} (
         id BIGSERIAL PRIMARY KEY,
-        week_id BIGINT NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
+        week_id BIGINT NOT NULL REFERENCES ${t('weeks')}(id) ON DELETE CASCADE,
         slot INTEGER NOT NULL,
         name TEXT NOT NULL,
         image_url TEXT,
@@ -110,19 +139,19 @@ if (USE_POSTGRES) {
     `);
 
     await run(`
-      CREATE TABLE IF NOT EXISTS votes (
+      CREATE TABLE IF NOT EXISTS ${t('votes')} (
         id BIGSERIAL PRIMARY KEY,
-        week_id BIGINT NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
-        candidate_id BIGINT NOT NULL REFERENCES candidates(id) ON DELETE CASCADE,
+        week_id BIGINT NOT NULL REFERENCES ${t('weeks')}(id) ON DELETE CASCADE,
+        candidate_id BIGINT NOT NULL REFERENCES ${t('candidates')}(id) ON DELETE CASCADE,
         voter_hash TEXT NOT NULL,
         created_at TEXT NOT NULL
       )
     `);
 
     await run(`
-      CREATE TABLE IF NOT EXISTS reactions (
+      CREATE TABLE IF NOT EXISTS ${t('reactions')} (
         id BIGSERIAL PRIMARY KEY,
-        week_id BIGINT NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
+        week_id BIGINT NOT NULL REFERENCES ${t('weeks')}(id) ON DELETE CASCADE,
         participant_name TEXT NOT NULL,
         reaction_id TEXT NOT NULL,
         voter_hash TEXT NOT NULL,
@@ -130,12 +159,14 @@ if (USE_POSTGRES) {
       )
     `);
 
-    await run('CREATE INDEX IF NOT EXISTS idx_votes_week ON votes(week_id)');
     await run(
-      'CREATE UNIQUE INDEX IF NOT EXISTS idx_votes_week_voter ON votes(week_id, voter_hash)'
+      `CREATE INDEX IF NOT EXISTS "${PG_SCHEMA}".idx_votes_week ON ${t('votes')}(week_id)`
     );
     await run(
-      'CREATE UNIQUE INDEX IF NOT EXISTS idx_reactions_week_participant_voter ON reactions(week_id, participant_name, voter_hash)'
+      `CREATE UNIQUE INDEX IF NOT EXISTS "${PG_SCHEMA}".idx_votes_week_voter ON ${t('votes')}(week_id, voter_hash)`
+    );
+    await run(
+      `CREATE UNIQUE INDEX IF NOT EXISTS "${PG_SCHEMA}".idx_reactions_week_participant_voter ON ${t('reactions')}(week_id, participant_name, voter_hash)`
     );
   };
 } else {

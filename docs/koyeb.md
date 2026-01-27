@@ -17,6 +17,13 @@ Alternativa (sem montar URL): defina as variaveis separadas (Koyeb mostra isso n
 - `DATABASE_PASSWORD`
 - `DATABASE_NAME`
 
+## 1.1) Erro "permission denied for schema public"
+Se aparecer esse erro, o provider revogou `CREATE` no schema `public`.
+Este app cria as tabelas por padrao no schema `app` (variavel `PG_SCHEMA`), entao basta redeployar com o codigo atualizado.
+
+Se voce quiser mudar o schema:
+- `PG_SCHEMA=minha_schema` (padrao `app`)
+
 ## 2) Criar o serviço (Git + Dockerfile)
 
 No Koyeb:
