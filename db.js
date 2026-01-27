@@ -131,9 +131,18 @@ if (USE_POSTGRES) {
           title TEXT NOT NULL,
           status TEXT NOT NULL CHECK (status IN ('OPEN', 'CLOSED')),
           created_at TEXT NOT NULL,
-          closed_at TEXT
+          closed_at TEXT,
+          reactions_status TEXT NOT NULL DEFAULT 'OPEN' CHECK (reactions_status IN ('OPEN', 'CLOSED')),
+          eliminated_candidate_id BIGINT
         )
       `);
+
+      await client.query(
+        "ALTER TABLE weeks ADD COLUMN IF NOT EXISTS reactions_status TEXT NOT NULL DEFAULT 'OPEN'"
+      );
+      await client.query(
+        'ALTER TABLE weeks ADD COLUMN IF NOT EXISTS eliminated_candidate_id BIGINT'
+      );
 
       await client.query(`
         CREATE TABLE IF NOT EXISTS candidates (
@@ -226,7 +235,9 @@ if (USE_POSTGRES) {
         title TEXT NOT NULL,
         status TEXT NOT NULL CHECK (status IN ('OPEN', 'CLOSED')),
         created_at TEXT NOT NULL,
-        closed_at TEXT
+        closed_at TEXT,
+        reactions_status TEXT NOT NULL DEFAULT 'OPEN' CHECK (reactions_status IN ('OPEN', 'CLOSED')),
+        eliminated_candidate_id INTEGER
       )
     `);
     await run(`
@@ -280,6 +291,16 @@ if (USE_POSTGRES) {
     const hasImageUrl = candidateCols.some((col) => col.name === 'image_url');
     if (!hasImageUrl) {
       await run('ALTER TABLE candidates ADD COLUMN image_url TEXT');
+    }
+
+    const weekCols = await all('PRAGMA table_info(weeks)');
+    const hasReactionsStatus = weekCols.some((col) => col.name === 'reactions_status');
+    if (!hasReactionsStatus) {
+      await run("ALTER TABLE weeks ADD COLUMN reactions_status TEXT NOT NULL DEFAULT 'OPEN'");
+    }
+    const hasEliminated = weekCols.some((col) => col.name === 'eliminated_candidate_id');
+    if (!hasEliminated) {
+      await run('ALTER TABLE weeks ADD COLUMN eliminated_candidate_id INTEGER');
     }
   };
 }

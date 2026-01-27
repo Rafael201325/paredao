@@ -1,4 +1,4 @@
-const { createApp } = Vue;
+﻿const { createApp } = Vue;
 
 createApp({
   data() {
@@ -32,8 +32,13 @@ createApp({
       ],
       selectedReactions: {},
       reactionCounts: {},
+      previousReactionCounts: {},
+      previousWindow: null,
+      reactionsOpen: true,
       partialCounts: {},
       partialTimer: null,
+      lastClosed: null,
+      eliminated: null,
     };
   },
   methods: {
@@ -46,6 +51,7 @@ createApp({
         this.candidates = [];
         this.hasOpenWeek = false;
         this.currentWeekId = null;
+        await this.loadLastClosed();
         return;
       }
       this.weekTitle = data.week.title;
@@ -124,11 +130,27 @@ createApp({
           map[row.participant_name][row.reaction_id] = Number(row.total || 0);
         });
         this.reactionCounts = map;
+        this.reactionsOpen = data?.week?.reactions_status !== 'CLOSED';
+        const prevMap = {};
+        (data.previousCounts || []).forEach((row) => {
+          if (!prevMap[row.participant_name]) prevMap[row.participant_name] = {};
+          prevMap[row.participant_name][row.reaction_id] = Number(row.total || 0);
+        });
+        this.previousReactionCounts = prevMap;
+        this.previousWindow = data.window || null;
       } catch (_) {
         this.reactionCounts = {};
+        this.previousReactionCounts = {};
+        this.previousWindow = null;
+        this.reactionsOpen = true;
       }
     },
     async selectReaction(participantId, reactionId) {
+      if (!this.reactionsOpen) {
+        this.message = 'Queridometro encerrado.';
+        this.messageColor = '#b42318';
+        return;
+      }
       const participant = this.participants.find((p) => p.id === participantId);
       if (!participant) return;
       this.selectedReactions = {
@@ -164,6 +186,18 @@ createApp({
     reactionCount(participantName, reactionId) {
       return this.reactionCounts?.[participantName]?.[reactionId] || 0;
     },
+    reactionCountPrev(participantName, reactionId) {
+      return this.previousReactionCounts?.[participantName]?.[reactionId] || 0;
+    },
+    previousSummary(participantName) {
+      const parts = this.reactions
+        .map((r) => {
+          const value = this.reactionCountPrev(participantName, r.id);
+          return value ? `${r.emoji} ${value}` : null;
+        })
+        .filter(Boolean);
+      return parts.length ? parts.join(' · ') : 'Sem votos';
+    },
     candidatePercent(candidateId) {
       const total = this.candidates.reduce(
         (sum, candidate) => sum + this.partialsFor(candidate.id),
@@ -176,6 +210,17 @@ createApp({
     },
     partialsFor(candidateId) {
       return this.partialCounts?.[candidateId] || 0;
+    },
+    async loadLastClosed() {
+      try {
+        const res = await fetch('/api/public/last-closed');
+        const data = await res.json();
+        this.lastClosed = data.week;
+        this.eliminated = data.eliminated;
+      } catch (_) {
+        this.lastClosed = null;
+        this.eliminated = null;
+      }
     },
   },
   async mounted() {

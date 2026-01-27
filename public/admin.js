@@ -60,7 +60,8 @@ createApp({
         return;
       }
       const closed = w.closed_at ? `fechada em ${w.closed_at}` : '';
-      this.weekMeta = `Status: ${w.status}. Criada em ${w.created_at}. ${closed}`;
+      const reactions = w.reactions_status ? `Queridometro: ${w.reactions_status}.` : '';
+      this.weekMeta = `Status: ${w.status}. ${reactions} Criada em ${w.created_at}. ${closed}`;
     },
     async loadWeekDetails() {
       if (!this.currentWeekId) return;
@@ -98,11 +99,39 @@ createApp({
     },
     async closeWeek() {
       if (!this.currentWeekId) return;
+      if (!confirm('Tem certeza que deseja encerrar a votacao?')) return;
       this.setAdminMessage('', false);
       try {
         await this.apiRequest(`/admin/weeks/${this.currentWeekId}/close`, { method: 'POST' });
         await this.loadWeeks();
         this.setAdminMessage('Semana fechada.', false);
+      } catch (err) {
+        this.setAdminMessage(err.message, true);
+      }
+    },
+    async closeReactions() {
+      if (!this.currentWeekId) return;
+      if (!confirm('Tem certeza que deseja encerrar o queridometro?')) return;
+      this.setAdminMessage('', false);
+      try {
+        await this.apiRequest(`/admin/weeks/${this.currentWeekId}/reactions/close`, {
+          method: 'POST',
+        });
+        await this.loadWeeks();
+        this.setAdminMessage('Queridometro encerrado.', false);
+      } catch (err) {
+        this.setAdminMessage(err.message, true);
+      }
+    },
+    async openReactions() {
+      if (!this.currentWeekId) return;
+      this.setAdminMessage('', false);
+      try {
+        await this.apiRequest(`/admin/weeks/${this.currentWeekId}/reactions/open`, {
+          method: 'POST',
+        });
+        await this.loadWeeks();
+        this.setAdminMessage('Queridometro aberto.', false);
       } catch (err) {
         this.setAdminMessage(err.message, true);
       }

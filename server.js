@@ -124,15 +124,28 @@ async function getOpenWeek() {
   return get("SELECT * FROM weeks WHERE status = 'OPEN' ORDER BY created_at DESC LIMIT 1");
 }
 
-async function getReactionCounts(weekId) {
+function getNoonWindow(now = new Date()) {
+  const noon = new Date(now);
+  noon.setHours(12, 0, 0, 0);
+  if (now < noon) {
+    noon.setDate(noon.getDate() - 1);
+  }
+  const previous = new Date(noon);
+  previous.setDate(previous.getDate() - 1);
+  return { currentStart: noon, previousStart: previous, currentEnd: now };
+}
+
+async function getReactionCounts(weekId, startIso, endIso) {
   const rows = await all(
     `
     SELECT participant_name, reaction_id, COUNT(id) AS total
     FROM reactions
     WHERE week_id = ?
+      AND created_at >= ?
+      AND created_at < ?
     GROUP BY participant_name, reaction_id
     `,
-    [weekId]
+    [weekId, startIso, endIso]
   );
   return rows;
 }
@@ -202,8 +215,27 @@ app.get('/api/public/reactions', async (req, res) => {
   try {
     const week = await getOpenWeek();
     if (!week) return res.json({ week: null, counts: [] });
-    const counts = await getReactionCounts(week.id);
-    return res.json({ week: { id: week.id }, counts });
+    const window = getNoonWindow();
+    const counts = await getReactionCounts(
+      week.id,
+      window.currentStart.toISOString(),
+      window.currentEnd.toISOString()
+    );
+    const previousCounts = await getReactionCounts(
+      week.id,
+      window.previousStart.toISOString(),
+      window.currentStart.toISOString()
+    );
+    return res.json({
+      week: { id: week.id, reactions_status: week.reactions_status },
+      counts,
+      previousCounts,
+      window: {
+        currentStart: window.currentStart.toISOString(),
+        previousStart: window.previousStart.toISOString(),
+        previousEnd: window.currentStart.toISOString(),
+      },
+    });
   } catch (err) {
     return sendError(res, 500, 'SERVER_ERROR', 'Erro interno');
   }
@@ -221,6 +253,9 @@ app.post('/api/public/reactions', rateLimit, async (req, res) => {
     const week = await getOpenWeek();
     if (!week) {
       return sendError(res, 409, 'NO_OPEN_WEEK', 'Nao ha semana aberta');
+    }
+    if (week.reactions_status === 'CLOSED') {
+      return sendError(res, 409, 'REACTIONS_CLOSED', 'Queridometro encerrado');
     }
 
     let voterId = getVoterId(req);
@@ -308,7 +343,7 @@ app.post('/api/public/vote', rateLimit, async (req, res) => {
 app.get('/admin/weeks', async (req, res) => {
   try {
     const weeks = await all(
-      'SELECT id, title, status, created_at, closed_at FROM weeks ORDER BY created_at DESC'
+      'SELECT id, title, status, reactions_status, created_at, closed_at FROM weeks ORDER BY created_at DESC'
     );
     return res.json({ weeks });
   } catch (err) {
@@ -426,9 +461,22 @@ app.post('/admin/weeks/:id/open', async (req, res) => {
 app.post('/admin/weeks/:id/close', async (req, res) => {
   try {
     const weekId = Number(req.params.id);
+    const top = await get(
+      `
+      SELECT c.id, COUNT(v.id) AS votes
+      FROM candidates c
+      LEFT JOIN votes v ON v.candidate_id = c.id
+      WHERE c.week_id = ?
+      GROUP BY c.id
+      ORDER BY votes DESC, c.id ASC
+      LIMIT 1
+      `,
+      [weekId]
+    );
+    const eliminatedId = top ? top.id : null;
     const result = await run(
-      "UPDATE weeks SET status = 'CLOSED', closed_at = ? WHERE id = ?",
-      [nowIso(), weekId]
+      "UPDATE weeks SET status = 'CLOSED', closed_at = ?, eliminated_candidate_id = ? WHERE id = ?",
+      [nowIso(), eliminatedId, weekId]
     );
     if (result.changes === 0) {
       return sendError(res, 404, 'NOT_FOUND', 'Semana nao encontrada');
@@ -442,7 +490,10 @@ app.post('/admin/weeks/:id/close', async (req, res) => {
 app.get('/admin/weeks/:id/results', async (req, res) => {
   try {
     const weekId = Number(req.params.id);
-    const week = await get('SELECT id, title, status FROM weeks WHERE id = ?', [weekId]);
+    const week = await get(
+      'SELECT id, title, status, eliminated_candidate_id FROM weeks WHERE id = ?',
+      [weekId]
+    );
     if (!week) {
       return sendError(res, 404, 'NOT_FOUND', 'Semana nao encontrada');
     }
@@ -458,6 +509,59 @@ app.get('/admin/weeks/:id/results', async (req, res) => {
       [weekId]
     );
     return res.json({ week, results });
+  } catch (err) {
+    return sendError(res, 500, 'SERVER_ERROR', 'Erro interno');
+  }
+});
+
+app.post('/admin/weeks/:id/reactions/close', async (req, res) => {
+  try {
+    const weekId = Number(req.params.id);
+    const result = await run(
+      "UPDATE weeks SET reactions_status = 'CLOSED' WHERE id = ?",
+      [weekId]
+    );
+    if (result.changes === 0) {
+      return sendError(res, 404, 'NOT_FOUND', 'Semana nao encontrada');
+    }
+    return res.json({ ok: true });
+  } catch (err) {
+    return sendError(res, 500, 'SERVER_ERROR', 'Erro interno');
+  }
+});
+
+app.post('/admin/weeks/:id/reactions/open', async (req, res) => {
+  try {
+    const weekId = Number(req.params.id);
+    const result = await run(
+      "UPDATE weeks SET reactions_status = 'OPEN' WHERE id = ?",
+      [weekId]
+    );
+    if (result.changes === 0) {
+      return sendError(res, 404, 'NOT_FOUND', 'Semana nao encontrada');
+    }
+    return res.json({ ok: true });
+  } catch (err) {
+    return sendError(res, 500, 'SERVER_ERROR', 'Erro interno');
+  }
+});
+
+app.get('/api/public/last-closed', async (req, res) => {
+  try {
+    const week = await get(
+      "SELECT id, title, closed_at, eliminated_candidate_id FROM weeks WHERE status = 'CLOSED' ORDER BY closed_at DESC LIMIT 1"
+    );
+    if (!week || !week.eliminated_candidate_id) {
+      return res.json({ week: null, eliminated: null });
+    }
+    const eliminated = await get(
+      'SELECT id, name, image_url FROM candidates WHERE id = ?',
+      [week.eliminated_candidate_id]
+    );
+    return res.json({
+      week: { id: week.id, title: week.title, closed_at: week.closed_at },
+      eliminated,
+    });
   } catch (err) {
     return sendError(res, 500, 'SERVER_ERROR', 'Erro interno');
   }

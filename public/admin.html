@@ -59,12 +59,20 @@
                 </option>
               </select>
               <p class="text-muted small mt-2 mb-3">{{ weekMeta }}</p>
-              <div class="d-flex gap-2">
-                <button class="btn btn-brand" @click="openWeek">Abrir</button>
-                <button class="btn btn-outline-secondary" @click="closeWeek">Fechar</button>
+                <div class="d-flex gap-2">
+                  <button class="btn btn-brand" @click="openWeek">Abrir votacao</button>
+                  <button class="btn btn-outline-secondary" @click="closeWeek">Encerrar votacao</button>
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                  <button class="btn btn-outline-secondary btn-sm" @click="openReactions">
+                    Abrir queridometro
+                  </button>
+                  <button class="btn btn-outline-secondary btn-sm" @click="closeReactions">
+                    Encerrar queridometro
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
 
           <div class="card border-0 shadow-sm">
             <div class="card-body">
