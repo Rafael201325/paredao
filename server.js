@@ -137,6 +137,10 @@ async function getReactionCounts(weekId) {
   return rows;
 }
 
+app.get('/healthz', (req, res) => {
+  return res.json({ ok: true, uptime: process.uptime() });
+});
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
