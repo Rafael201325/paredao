@@ -1,10 +1,28 @@
 const path = require('path');
 const fs = require('fs');
 
+function buildPostgresUrlFromParts() {
+  const host = process.env.DATABASE_HOST || process.env.PGHOST || '';
+  const port = process.env.DATABASE_PORT || process.env.PGPORT || '5432';
+  const user =
+    process.env.DATABASE_USER || process.env.PGUSER || process.env.PGUSERNAME || '';
+  const password =
+    process.env.DATABASE_PASSWORD || process.env.PGPASSWORD || '';
+  const database = process.env.DATABASE_NAME || process.env.PGDATABASE || '';
+
+  if (!host || !user || !password || !database) return '';
+
+  const encUser = encodeURIComponent(user);
+  const encPass = encodeURIComponent(password);
+  const encDb = encodeURIComponent(database);
+  return `postgres://${encUser}:${encPass}@${host}:${port}/${encDb}`;
+}
+
 const POSTGRES_URL =
   process.env.DATABASE_URL ||
   process.env.POSTGRES_URL ||
   process.env.PG_URL ||
+  buildPostgresUrlFromParts() ||
   '';
 
 const USE_POSTGRES = Boolean(POSTGRES_URL);
@@ -38,8 +56,8 @@ if (USE_POSTGRES) {
     String(process.env.PG_SSL || process.env.PGSSL || 'true').toLowerCase() !==
     'false';
   const pgRejectUnauthorized =
-    String(process.env.PG_SSL_REJECT_UNAUTHORIZED || 'true').toLowerCase() !==
-    'false';
+    String(process.env.PG_SSL_REJECT_UNAUTHORIZED || 'false').toLowerCase() ===
+    'true';
 
   const pool = new Pool({
     connectionString: POSTGRES_URL,

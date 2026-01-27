@@ -8,7 +8,14 @@ Para nao perder votos em redeploy/restart, use Postgres:
 
 - Crie um Postgres (Koyeb Postgres ou outro provider).
 - Copie a connection string e configure `DATABASE_URL`.
-- Se o provider exigir TLS, mantenha `PG_SSL=true` (padrao) e ajuste `PG_SSL_REJECT_UNAUTHORIZED` se precisar.
+- Se o provider exigir TLS, mantenha `PG_SSL=true` (padrao). Se der erro de certificado (ex: self-signed), configure `PG_SSL_REJECT_UNAUTHORIZED=false`.
+
+Alternativa (sem montar URL): defina as variaveis separadas (Koyeb mostra isso na aba `.env` do Database):
+- `DATABASE_HOST`
+- `DATABASE_PORT` (opcional, padrao 5432)
+- `DATABASE_USER`
+- `DATABASE_PASSWORD`
+- `DATABASE_NAME`
 
 ## 2) Criar o serviço (Git + Dockerfile)
 
@@ -35,4 +42,3 @@ Opcoes:
 
 Com SQLite/arquivos locais, evite mais de 1 replica (cada replica teria seu proprio `data.db` / `uploads`).
 Com Postgres (e uploads em storage), voce pode escalar horizontalmente.
-
