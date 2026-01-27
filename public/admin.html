@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - Paredao</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg bg-white shadow-sm">
+      <div class="container py-2">
+        <span class="navbar-brand">Admin - Paredao</span>
+      </div>
+    </nav>
+
+    <main id="adminApp" class="container py-4">
+      <div class="row g-3">
+        <div class="col-12">
+          <div class="card card-soft border-0 shadow-sm">
+            <div class="card-body">
+              <h1 class="h4 mb-1">Painel de controle</h1>
+              <p class="text-muted mb-0">Gerencie semanas, candidatos e resultados.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-5">
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+              <h3 class="h6 text-uppercase text-muted">Criar semana</h3>
+              <label class="form-label" for="weekTitleInput">Titulo (opcional)</label>
+              <input
+                id="weekTitleInput"
+                class="form-control"
+                type="text"
+                placeholder="Paredão - Semana 01/2026"
+                v-model="newWeekTitle"
+              />
+              <button class="btn btn-brand mt-3" @click="createWeek">Criar semana</button>
+            </div>
+          </div>
+
+          <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body">
+              <h3 class="h6 text-uppercase text-muted">Selecionar semana</h3>
+              <label class="form-label" for="weekSelect">Semana</label>
+              <select
+                id="weekSelect"
+                class="form-select"
+                v-model.number="currentWeekId"
+                @change="onWeekChange"
+              >
+                <option v-for="w in weeks" :key="w.id" :value="w.id">
+                  {{ w.title }} ({{ w.status }})
+                </option>
+              </select>
+              <p class="text-muted small mt-2 mb-3">{{ weekMeta }}</p>
+              <div class="d-flex gap-2">
+                <button class="btn btn-brand" @click="openWeek">Abrir</button>
+                <button class="btn btn-outline-secondary" @click="closeWeek">Fechar</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <h3 class="h6 text-uppercase text-muted">Resultados</h3>
+              <div v-if="results.length === 0" class="text-muted">Sem resultados.</div>
+              <div v-for="r in results" :key="r.id" class="d-flex justify-content-between py-1">
+                <span>{{ r.name }}</span>
+                <span class="fw-semibold">{{ r.votes }}</span>
+              </div>
+              <button class="btn btn-outline-secondary mt-3" @click="refreshResults">
+                Atualizar resultados
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-7">
+          <div class="card border-0 shadow-sm">
+            <div class="card-body">
+              <h3 class="h6 text-uppercase text-muted">Candidatos</h3>
+
+              <div class="mb-3">
+                <label class="form-label" for="cand1">Candidato 1</label>
+                <input id="cand1" class="form-control" type="text" v-model="candidates[0].name" />
+                <label class="form-label mt-2" for="cand1img">Imagem (JPEG)</label>
+                <input
+                  id="cand1img"
+                  class="form-control"
+                  type="file"
+                  accept="image/jpeg"
+                  @change="onFileChange(1, $event)"
+                />
+                <div class="d-flex align-items-center gap-2 mt-2">
+                  <button class="btn btn-outline-secondary btn-sm" type="button" @click="uploadImage(1)">
+                    Enviar imagem
+                  </button>
+                  <span class="text-muted small">{{ imageStatus[0] }}</span>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label" for="cand2">Candidato 2</label>
+                <input id="cand2" class="form-control" type="text" v-model="candidates[1].name" />
+                <label class="form-label mt-2" for="cand2img">Imagem (JPEG)</label>
+                <input
+                  id="cand2img"
+                  class="form-control"
+                  type="file"
+                  accept="image/jpeg"
+                  @change="onFileChange(2, $event)"
+                />
+                <div class="d-flex align-items-center gap-2 mt-2">
+                  <button class="btn btn-outline-secondary btn-sm" type="button" @click="uploadImage(2)">
+                    Enviar imagem
+                  </button>
+                  <span class="text-muted small">{{ imageStatus[1] }}</span>
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label" for="cand3">Candidato 3</label>
+                <input id="cand3" class="form-control" type="text" v-model="candidates[2].name" />
+                <label class="form-label mt-2" for="cand3img">Imagem (JPEG)</label>
+                <input
+                  id="cand3img"
+                  class="form-control"
+                  type="file"
+                  accept="image/jpeg"
+                  @change="onFileChange(3, $event)"
+                />
+                <div class="d-flex align-items-center gap-2 mt-2">
+                  <button class="btn btn-outline-secondary btn-sm" type="button" @click="uploadImage(3)">
+                    Enviar imagem
+                  </button>
+                  <span class="text-muted small">{{ imageStatus[2] }}</span>
+                </div>
+              </div>
+
+              <button class="btn btn-brand" @click="saveCandidates">Salvar nomes</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12">
+          <div class="message fw-semibold" :style="{ color: adminMessageColor }">
+            {{ adminMessage }}
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <script src="/admin.js"></script>
+  </body>
+</html>

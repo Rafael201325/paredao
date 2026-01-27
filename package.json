@@ -1,0 +1,26 @@
+{
+  "name": "paredao-votacao",
+  "version": "1.0.0",
+  "description": "Sistema simples de votacao do paredao da semana",
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "node server.js",
+    "start": "node server.js",
+    "build:exe": "pkg . --targets node18-win-x64 --output dist/paredao.exe"
+  },
+  "bin": "server.js",
+  "dependencies": {
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  },
+  "pkg": {
+    "assets": [
+      "public/**/*"
+    ]
+  }
+}

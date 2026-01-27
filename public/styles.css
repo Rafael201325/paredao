@@ -1,0 +1,274 @@
+:root {
+  --brand: #0f766e;
+  --brand-dark: #0b5f58;
+}
+
+body {
+  background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+}
+
+.navbar-brand {
+  font-weight: 700;
+}
+
+.btn-brand {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.btn-brand:hover {
+  background: var(--brand-dark);
+  border-color: var(--brand-dark);
+  color: #fff;
+}
+
+.candidate-card img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+}
+
+.card-body .btn.btn-sm {
+  white-space: nowrap;
+}
+
+.participant-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.participant-name {
+  min-width: 140px;
+  font-weight: 600;
+}
+
+.reaction-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reaction-btn {
+  min-width: 110px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+@media (max-width: 576px) {
+  .participant-name {
+    min-width: 100%;
+  }
+  .reaction-btn {
+    min-width: 100px;
+  }
+}
+
+.card-soft {
+  background: #ffffffb8;
+  backdrop-filter: blur(6px);
+}
+
+.message {
+  min-height: 24px;
+}
+
+.closing-alert {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #b42318;
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+/* Public page: GTA 6-inspired vibe */
+.public-page {
+  font-family: "Rajdhani", system-ui, sans-serif;
+  background: radial-gradient(circle at top, rgba(255, 135, 30, 0.35), transparent 45%),
+    radial-gradient(circle at 80% 15%, rgba(255, 0, 168, 0.45), transparent 40%),
+    radial-gradient(circle at 20% 30%, rgba(255, 64, 128, 0.25), transparent 50%),
+    linear-gradient(140deg, #0a0812 0%, #140b2d 50%, #1b0a2e 100%);
+  color: #f5f2ff;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.public-page::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(transparent 0%, rgba(255, 255, 255, 0.03) 50%, transparent 100%);
+  background-size: 100% 6px;
+  pointer-events: none;
+  opacity: 0.2;
+  z-index: 0;
+}
+
+.public-page::after {
+  content: "";
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 40vh;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 400'><rect width='1200' height='400' fill='none'/><path d='M120 380 C160 300 180 210 200 120 C205 95 230 95 235 120 C250 205 275 300 320 380 Z' fill='%230a0714'/><path d='M210 120 C170 110 130 100 90 80 C110 90 130 110 150 130 C110 125 80 115 40 95 C70 120 100 145 140 160 C110 160 80 155 40 140 C90 170 140 190 190 200 C170 210 150 225 130 245 C175 235 210 220 240 200 C260 175 290 150 330 130 C300 125 270 120 240 120 Z' fill='%230f0b1c'/><path d='M980 380 C940 300 920 210 900 120 C895 95 870 95 865 120 C850 205 825 300 780 380 Z' fill='%230a0714'/><path d='M890 120 C930 110 970 100 1010 80 C990 90 970 110 950 130 C990 125 1020 115 1060 95 C1030 120 1000 145 960 160 C990 160 1020 155 1060 140 C1010 170 960 190 910 200 C930 210 950 225 970 245 C925 235 890 220 860 200 C840 175 810 150 770 130 C800 125 830 120 860 120 Z' fill='%230f0b1c'/></svg>");
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  background-size: cover;
+  opacity: 0.75;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.public-page .navbar {
+  background: rgba(8, 7, 18, 0.75) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.public-page .navbar-brand {
+  font-family: "Bebas Neue", sans-serif;
+  font-size: 1.9rem;
+  letter-spacing: 0.08em;
+  color: #ff6ad5;
+  text-shadow: 0 0 18px rgba(255, 106, 213, 0.7);
+  display: flex;
+  flex-direction: column;
+}
+
+.public-page .wordmark-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.public-page .wordmark-primary {
+  color: #ff63b7;
+  text-shadow: 0 0 18px rgba(255, 99, 183, 0.7);
+}
+
+.public-page .wordmark-accent {
+  color: #ffb347;
+  font-size: 2.2rem;
+  text-shadow: 0 0 18px rgba(255, 179, 71, 0.7);
+}
+
+.public-page .wordmark-sub {
+  font-family: "Rajdhani", sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.35em;
+  color: rgba(245, 242, 255, 0.7);
+}
+
+.public-page .card {
+  background: rgba(12, 10, 24, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  color: #f5f2ff;
+}
+
+.public-page .card-soft {
+  background: rgba(18, 14, 34, 0.82);
+}
+
+.public-page .card-title,
+.public-page h1,
+.public-page h2,
+.public-page h3,
+.public-page h4,
+.public-page h5 {
+  font-family: "Bebas Neue", sans-serif;
+  letter-spacing: 0.04em;
+}
+
+.public-page .text-muted {
+  color: rgba(245, 242, 255, 0.6) !important;
+}
+
+.public-page .btn-brand {
+  background: linear-gradient(135deg, #ff7a18, #ff2f8f);
+  border: none;
+  box-shadow: 0 8px 18px rgba(255, 61, 129, 0.45);
+}
+
+.public-page .btn-brand:hover {
+  background: linear-gradient(135deg, #ff933d, #ff4fa0);
+}
+
+.public-page .btn-outline-secondary {
+  color: #f5f2ff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.public-page .btn-outline-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.public-page .candidate-card {
+  background: rgba(16, 12, 28, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.public-page .candidate-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(255, 61, 129, 0.25);
+}
+
+.public-page .candidate-card img {
+  height: 200px;
+  filter: saturate(1.1);
+}
+
+.public-page .partial-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.public-page .partial-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.3em;
+  color: rgba(245, 242, 255, 0.6);
+}
+
+.public-page .partial-progress {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.public-page .partial-progress .progress-bar {
+  background: linear-gradient(90deg, #ff7a18, #ff2f8f);
+}
+
+.public-page .partial-value {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffb347;
+}
+
+.public-page .reaction-btn {
+  border-radius: 999px;
+}
+
+.public-page .badge {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #f5f2ff !important;
+}
+
+.public-page .closing-alert {
+  font-size: 1.6rem;
+  color: #ff3d81;
+  text-shadow: 0 0 18px rgba(255, 61, 129, 0.7);
+}
