@@ -124,6 +124,12 @@ async function getOpenWeek() {
   return get("SELECT * FROM weeks WHERE status = 'OPEN' ORDER BY created_at DESC LIMIT 1");
 }
 
+async function getReactionsWeek() {
+  return get(
+    "SELECT * FROM weeks WHERE reactions_status = 'OPEN' ORDER BY created_at DESC LIMIT 1"
+  );
+}
+
 function getNoonWindow(now = new Date()) {
   const noon = new Date(now);
   noon.setHours(12, 0, 0, 0);
@@ -213,8 +219,8 @@ app.get('/api/public/partial', async (req, res) => {
 
 app.get('/api/public/reactions', async (req, res) => {
   try {
-    const week = await getOpenWeek();
-    if (!week) return res.json({ week: null, counts: [] });
+    const week = await getReactionsWeek();
+    if (!week) return res.json({ week: null, counts: [], previousCounts: [] });
     const window = getNoonWindow();
     const counts = await getReactionCounts(
       week.id,
@@ -250,9 +256,9 @@ app.post('/api/public/reactions', rateLimit, async (req, res) => {
     if (!reactionId || !REACTIONS.has(reactionId)) {
       return sendError(res, 400, 'INVALID_REACTION', 'Reacao invalida');
     }
-    const week = await getOpenWeek();
+    const week = await getReactionsWeek();
     if (!week) {
-      return sendError(res, 409, 'NO_OPEN_WEEK', 'Nao ha semana aberta');
+      return sendError(res, 409, 'NO_OPEN_QUERIDOMETRO', 'Queridometro indisponivel');
     }
     if (week.reactions_status === 'CLOSED') {
       return sendError(res, 409, 'REACTIONS_CLOSED', 'Queridometro encerrado');
