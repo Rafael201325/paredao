@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
+    "migrate:postgres": "node scripts/migrate-sqlite-to-postgres.js",
     "build:exe": "pkg . --targets node18-win-x64 --output dist/paredao.exe"
   },
   "bin": "server.js",
