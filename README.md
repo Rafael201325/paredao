@@ -1,136 +1,93 @@
 # Paredão da Semana
 
-Sistema web simples de votação com painel admin, histórico de semanas e armazenamento em banco (SQLite local ou Postgres).
+Aplicação web full stack para gerenciamento de votações semanais, com painel administrativo, histórico, upload de imagens e persistência em SQLite ou PostgreSQL.
 
-## Começar rápido (local)
+## Tecnologias
 
-Requisitos: Node.js 18+
+- Node.js
+- Express
+- JavaScript
+- SQLite
+- PostgreSQL
+- Docker
+- Multer
+
+## Funcionalidades
+
+### Área pública
+
+- consulta da votação aberta;
+- exibição dos três candidatos;
+- registro de um voto por navegador;
+- mensagens estruturadas para voto inválido ou duplicado.
+
+### Administração
+
+- criação de semanas;
+- edição de candidatos;
+- abertura e encerramento da votação;
+- upload de imagens;
+- consulta dos resultados;
+- histórico das votações.
+
+## Executar localmente
+
+Requisitos: Node.js 18+ e npm.
 
 ```bash
 npm install
 npm run dev
 ```
 
-- Público: `http://localhost:3000/`
-- Admin: `http://localhost:3000/admin`
-- Healthcheck: `http://localhost:3000/healthz`
+Acessos:
 
-Por padrão, usa SQLite em `./data.db`.
-
-## Deploy no Koyeb (Free + Postgres)
-
-No Koyeb Free não há volume, então **SQLite/Uploads no disco podem se perder** em restart/redeploy. O recomendado é:
-
-1) Criar um Postgres (Koyeb Database)
-2) Criar um Web Service a partir do Git (usa `Dockerfile`)
-3) Configurar as variáveis de ambiente do app:
-
-- `VOTER_SALT` (Secret)
-- `COOKIE_SECURE=true`
-- Postgres (escolha 1 opção):
-  - **Opção A:** `DATABASE_URL` (Secret) com a URL completa
-  - **Opção B:** `DATABASE_HOST`, `DATABASE_USER`, `DATABASE_PASSWORD` (Secret), `DATABASE_NAME` (o app monta a URL)
-- `PG_SCHEMA=app` (recomendado)
-
-Guia detalhado: `docs/koyeb.md`.
-
-## Painel admin
-
-Acesse em `/admin`.
-
-Observação: nesta versão **não existe login**. Se precisar, dá para colocar uma senha/token no admin.
-
-## Migração de dados (SQLite local -> Postgres)
-
-Guia: `docs/migracao.md`.
-
-Exemplo (PowerShell):
-```powershell
-# Pegue esses valores na aba ".env" do seu Database no Koyeb
-$env:DATABASE_HOST="ep-...pg.koyeb.app"
-$env:DATABASE_USER="..."
-$env:DATABASE_PASSWORD="..."
-$env:DATABASE_NAME="koyebdb"
-$env:PG_SCHEMA="app"
-
-# Ver contagens (não grava)
-npm run migrate:postgres -- --sqlite .\data.db --dry-run
-
-# Importar
-npm run migrate:postgres -- --sqlite .\data.db
+```text
+Aplicação:  http://localhost:3000/
+Admin:      http://localhost:3000/admin
+Healthcheck:http://localhost:3000/healthz
 ```
 
-## Variáveis de ambiente
+Por padrão, a aplicação utiliza SQLite. Para PostgreSQL, configure `DATABASE_URL` ou as variáveis separadas de conexão.
 
-- `PORT`: porta do servidor (padrão `3000`)
-- `VOTER_SALT`: salt para hash do identificador anônimo do eleitor (padrão `dev-salt-change-me`)
-- `COOKIE_SECURE`: quando `true`, adiciona `Secure` ao cookie (use em HTTPS)
-- `UPLOADS_DIR`: pasta onde imagens enviadas são gravadas (padrão `./uploads`)
+## Principais rotas
 
-Banco de dados:
-- **Postgres:** defina `DATABASE_URL` (ou `DATABASE_HOST`/`DATABASE_USER`/`DATABASE_PASSWORD`/`DATABASE_NAME`)
-  - `PG_SSL` (padrão `true`)
-  - `PG_SSL_REJECT_UNAUTHORIZED` (padrão `false`)
-  - `PG_SCHEMA` (padrão `app`)
-- **SQLite:** `DB_PATH` (padrão `./data.db`) (usado apenas quando Postgres não está configurado)
-
-Exemplo (PowerShell):
-```powershell
-$env:PORT="3000"
-$env:VOTER_SALT="troque-este-valor"
-npm run dev
+```text
+GET  /api/public/status
+POST /api/public/vote
+POST /admin/weeks
+POST /admin/weeks/:id/open
+POST /admin/weeks/:id/close
+PUT  /admin/weeks/:id/candidates
+GET  /admin/weeks/:id/results
 ```
 
-## Fluxo recomendado
+## Regras relevantes
 
-1) Admin cria semana (status `CLOSED`)
-2) Admin edita nomes dos 3 candidatos
-3) Admin abre a semana (status `OPEN`)
-4) (Opcional) Admin envia imagens JPEG
-5) Público vota (1 voto por navegador)
-6) Admin fecha semana e consulta resultados
+- somente uma semana pode ficar aberta por vez;
+- o voto é vinculado a um identificador anônimo com hash;
+- votos duplicados retornam `409 Conflict`;
+- candidatos inválidos retornam `400 Bad Request`;
+- o banco pode operar localmente com SQLite ou em produção com PostgreSQL.
 
-## Rotas
+## Segurança e limitações
 
-Público:
-- `GET /` página de votação
-- `GET /api/public/status` semana aberta + candidatos
-- `POST /api/public/vote` body: `{ "candidateId": 1 }`
+O projeto demonstra um protótipo funcional. O painel administrativo ainda não possui autenticação e não deve ser publicado em produção sem uma camada de controle de acesso.
 
-Admin:
-- `GET /admin` painel
-- `GET /admin/weeks` lista semanas
-- `POST /admin/weeks` body: `{ "title": "..." }`
-- `POST /admin/weeks/:id/open`
-- `POST /admin/weeks/:id/close`
-- `PUT /admin/weeks/:id/candidates` body: `{ "names": ["A", "B", "C"] }`
-- `POST /admin/weeks/:id/candidates/:slot/image` (multipart `image` JPEG)
-- `GET /admin/weeks/:id/results`
+Também há rate limit simples em memória e armazenamento local de uploads, que devem ser substituídos por soluções persistentes em um ambiente produtivo.
 
-## Exemplos de erros
+## Oportunidades para Quality Engineering
 
-400 - Candidato inválido
-```json
-{
-  "error": {
-    "code": "INVALID_CANDIDATE",
-    "message": "Candidato invalido"
-  }
-}
-```
+Este projeto é adequado para demonstrar:
 
-409 - Voto já registrado
-```json
-{
-  "error": {
-    "code": "ALREADY_VOTED",
-    "message": "Voto ja registrado"
-  }
-}
-```
+- testes de API;
+- validação de regras de votação;
+- testes de concorrência e duplicidade;
+- testes de upload;
+- testes de persistência em diferentes bancos;
+- segurança do painel administrativo;
+- testes de performance e carga.
 
-## Observações
+## Autor
 
-- O hash do identificador anônimo do eleitor usa SHA-256 + `VOTER_SALT` e não é reversível.
-- Rate limit simples por IP fica em memória (reinicia ao restart).
-- Uploads no Koyeb Free ficam no disco do container (podem sumir em restart/redeploy).
+**Rafael Siqueira**  
+QA Engineer | Test Automation | APIs | Performance
